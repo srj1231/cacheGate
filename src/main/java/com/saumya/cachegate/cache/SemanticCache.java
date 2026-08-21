@@ -1,5 +1,7 @@
 package com.saumya.cachegate.cache;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -14,7 +16,8 @@ import java.util.Optional;
 @Component
 public class SemanticCache {
 
-    private static final double SIMILARITY_THRESHOLD = 0.92;
+    private static final double SIMILARITY_THRESHOLD = 0.8;
+    private static final Logger log = LoggerFactory.getLogger(SemanticCache.class);
     private final List<CacheEntry> entries = new ArrayList<>();
 
     /**
@@ -69,6 +72,8 @@ public class SemanticCache {
             return 0.0;
         }
 
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        var similarityScore = dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        log.info("Cosine similarity: {}", similarityScore);
+        return similarityScore;
     }
 }
