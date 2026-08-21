@@ -18,3 +18,7 @@ spring:
         chat:
           options:
             model: gemini-3.6-flash
+        embedding:
+          api-key: ${GEMINI_API_KEY}
+          options:
+            model: gemini-embedding-2
