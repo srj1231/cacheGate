@@ -1,9 +1,16 @@
 package com.saumya.cachegate.Chat;
 
+import com.saumya.cachegate.cache.SemanticCache;
 import com.saumya.cachegate.llmProvider.LlmProvider;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 /**
  * Chat tool for LLM services.
@@ -11,16 +18,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChatTool {
 
-    private final LlmProvider llmProvider;
+    private static final Logger log = LoggerFactory.getLogger(ChatTool.class);
 
-    public ChatTool(LlmProvider llmProvider) {
+    private final LlmProvider llmProvider;
+    private final EmbeddingModel embeddingModel;
+    private final SemanticCache semanticCache;
+
+    public ChatTool(LlmProvider llmProvider, EmbeddingModel embeddingModel, SemanticCache semanticCache) {
         this.llmProvider = llmProvider;
+        this.embeddingModel = embeddingModel;
+        this.semanticCache = semanticCache;
     }
 
-    @McpTool(description = "Send a prompt to an LLM and get back a completion")
+    @McpTool(description = "Send a prompt to an LLM and get back a completion, using a semantic cache to avoid duplicate calls.")
     public String chatCompletion(
             @McpToolParam(description = "The prompt to send to the model", required = true) String prompt
     ) {
-        return llmProvider.complete(prompt);
+        float[] embedding = embeddingModel.embed(prompt);
+
+        Optional<String> cache = semanticCache.findSimilar(embedding);
+        if(cache.isPresent()) {
+            log.info("CACHE HIT for prompt: \"{}\"", prompt);
+            return cache.get();
+        }
+
+        log.info("CACHE MISS for prompt: \"{}\"", prompt);
+        String response = llmProvider.complete(prompt);
+        semanticCache.store(prompt, embedding, response);
+
+        return response;
     }
 }
