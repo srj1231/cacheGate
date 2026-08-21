@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: cachegate
+
+  main:
+    banner-mode: off
+
+  ai:
+    mcp:
+      server:
+        stdio: true
+        name: cachegate
+        version: 0.1.0
+
+
