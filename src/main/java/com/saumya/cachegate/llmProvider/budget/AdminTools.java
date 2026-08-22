@@ -23,7 +23,7 @@ public class AdminTools {
     @McpTool(description = "Return cache hit-rate stats and current session budget usage")
     public String cacheStats() {
         int total = semanticCache.getTotalChecks();
-        int hits = semanticCache.getHits();
+        int hits = semanticCache.recordHit();
         double hitRate = total == 0 ? 0.0 : (100.0 * hits / total);
         return String.format(
                 "Cache entries: %d | Requests checked: %d | Cache hits: %d | Hit rate: %.1f%% | Provider calls saved: %d | Session budget: %d / %d used",
@@ -41,5 +41,11 @@ public class AdminTools {
             sb.append(i + 1).append(". ").append(name).append(" — ").append(statusText).append("\n");
         }
         return sb.toString();
+    }
+
+    @McpTool(description = "Clear all cached entries and reset hit-rate stats. Use when testing threshold changes or when cached answers are stale.")
+    public String clearCache() {
+        semanticCache.clear();
+        return "Cache cleared. All entries removed and stats reset to zero.";
     }
 }

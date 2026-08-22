@@ -73,16 +73,14 @@ public class SemanticCache {
     }
 
     /**
-     * Stores a prompt-response pair with its embedding in the cache.
-     *
-     * @param prompt the input prompt
-     * @param embeddings the embedding vector of the prompt
-     * @param response the LLM response to cache
+     * Clear all cached entries and reset hit-rate stats.
      */
-    public synchronized void store(String prompt, float[] embeddings, String response) {
-        entries.add(new CacheEntry(prompt, embeddings, response));
-        repository.save(prompt, embeddings, response);
-        log.info("STORED new cache entry for prompt: \"{}\"", prompt);
+    public synchronized void clear() {
+        entries.clear();
+        repository.deleteAll();
+        totalChecks.set(0);
+        hits.set(0);
+        log.info("CACHE CLEARED — all entries removed, stats reset");
     }
 
     /**
