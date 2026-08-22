@@ -29,8 +29,8 @@ Every incoming prompt gets embedded and compared against everything already cach
 
 **Working now:**
 - ✅ MCP server over stdio, tested against Claude Desktop
-- ✅ Real `chat_completion` tool backed by Gemini (`gemini-2.5-flash`)
-- ✅ Semantic cache — embeds every prompt (`gemini-embedding-001`), cosine similarity match at a `0.80` threshold
+- ✅ Real `chat_completion` tool backed by Gemini (`gemini-3.6-flash`)
+- ✅ Semantic cache — embeds every prompt (`gemini-embedding-2`), cosine similarity match at a `0.80` threshold
 - ✅ Cache persisted to SQLite — survives a full restart, not just in-memory
 - ✅ Structured logging for every request: similarity score, hit/miss, whether the provider was actually called
 
@@ -99,11 +99,11 @@ spring:
         api-key: ${GEMINI_API_KEY}
         chat:
           options:
-            model: gemini-2.5-flash
+            model: gemini-3.6-flash
         embedding:
           api-key: ${GEMINI_API_KEY}
           text:
-            model: gemini-embedding-001
+            model: gemini-embedding-2
   datasource:
     url: jdbc:sqlite:/absolute/path/to/cachegate/cachegate.db
     driver-class-name: org.sqlite.JDBC
