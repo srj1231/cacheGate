@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Semantic cache for LLM responses using vector embeddings.
@@ -16,6 +17,9 @@ import java.util.Optional;
  */
 @Component
 public class SemanticCache {
+
+    private final AtomicInteger totalChecks = new AtomicInteger(0);
+    private final AtomicInteger hits = new AtomicInteger(0);
 
     private static final double SIMILARITY_THRESHOLD = 0.8;
     private static final Logger log = LoggerFactory.getLogger(SemanticCache.class);
@@ -43,6 +47,7 @@ public class SemanticCache {
      * @return an Optional containing the similar response if found above the similarity threshold
      */
     public synchronized Optional<String> findSimilar(float[] queryEmbedding) {
+        totalChecks.incrementAndGet();
         CacheEntry best = null;
         double bestScore = 0.0;
 
@@ -60,7 +65,11 @@ public class SemanticCache {
         }
 
         log.info("SIMILARITY CHECK: closest match scored {} against cached prompt \"{}\"", bestScore, best.prompt());
-        return bestScore >= SIMILARITY_THRESHOLD ? Optional.of(best.response()) : Optional.empty();
+        if (bestScore >= SIMILARITY_THRESHOLD) {
+            hits.incrementAndGet();
+            return Optional.of(best.response());
+        }
+        return Optional.empty();
     }
 
     /**
@@ -100,4 +109,8 @@ public class SemanticCache {
         log.info("Cosine similarity: {}", similarityScore);
         return similarityScore;
     }
+
+    public int getTotalChecks() { return totalChecks.get(); }
+    public int getHits() { return hits.get(); }
+    public int getEntryCount() { return entries.size(); }
 }
