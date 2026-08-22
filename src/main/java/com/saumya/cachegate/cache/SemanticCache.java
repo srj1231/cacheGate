@@ -3,6 +3,7 @@ package com.saumya.cachegate.cache;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,12 +24,20 @@ public class SemanticCache {
 
     private static final double SIMILARITY_THRESHOLD = 0.8;
     private static final Logger log = LoggerFactory.getLogger(SemanticCache.class);
+    private static final int MAX_CANDIDATES = 3;
 
     private final CacheEntryRepository repository;
     private final List<CacheEntry> entries = new ArrayList<>();
 
-    public SemanticCache(CacheEntryRepository repository) {
+    private final double autoAcceptThreshold;
+    private final double candidateFloor;
+
+    public SemanticCache(CacheEntryRepository repository,
+                         @Value("${cachegate.cache.auto-accept-threshold:0.95}") double autoAcceptThreshold,
+                         @Value("${cachegate.cache.candidate-floor:0.75}") double candidateFloor) {
         this.repository = repository;
+        this.autoAcceptThreshold = autoAcceptThreshold;
+        this.candidateFloor = candidateFloor;
     }
 
     /**
@@ -41,48 +50,61 @@ public class SemanticCache {
     }
 
     /**
-     * Finds a cached response similar to the query embedding.
+     * Finds cached candidates similar to the query embedding.
      *
      * @param queryEmbedding the embedding vector of the query prompt
-     * @return an Optional containing the similar response if found above the similarity threshold
+     * @return a list of scored entries that are similar to the query
      */
-    public synchronized Optional<String> findSimilar(float[] queryEmbedding) {
+    public synchronized List<ScoredEntry> findCandidates(float[] queryEmbedding) {
         totalChecks.incrementAndGet();
-        CacheEntry best = null;
-        double bestScore = 0.0;
-
-        for(CacheEntry entry : entries){
+        List<ScoredEntry> scored = new ArrayList<>();
+        for (CacheEntry entry : entries) {
             double score = cosineSimilarity(entry.embedding(), queryEmbedding);
-            if (score > bestScore) {
-                bestScore = score;
-                best = entry;
+            log.info("Cosine similarity: {} for cached prompt \"{}\"", score, entry.prompt());
+            if (score >= candidateFloor) {
+                scored.add(new ScoredEntry(entry, score));
             }
         }
+        scored.sort((a, b) -> Double.compare(b.score(), a.score()));
+        return scored.size() > MAX_CANDIDATES ? scored.subList(0, MAX_CANDIDATES) : scored;
+    }
 
-        if (best == null) {
-            log.info("SIMILARITY CHECK: cache is empty, nothing to compare against");
-            return Optional.empty();
-        }
-
-        log.info("SIMILARITY CHECK: closest match scored {} against cached prompt \"{}\"", bestScore, best.prompt());
-        if (bestScore >= SIMILARITY_THRESHOLD) {
-            hits.incrementAndGet();
-            return Optional.of(best.response());
-        }
-        return Optional.empty();
+    public boolean isAutoAccept(double score) {
+        return score >= autoAcceptThreshold;
     }
 
     /**
-     * Stores a prompt-response pair with its embedding in the cache.
-     *
-     * @param prompt the input prompt
-     * @param embeddings the embedding vector of the prompt
-     * @param response the LLM response to cache
+     * Find a cached entry by its ID.
      */
-    public synchronized void store(String prompt, float[] embeddings, String response) {
-        entries.add(new CacheEntry(prompt, embeddings, response));
-        repository.save(prompt, embeddings, response);
-        log.info("STORED new cache entry for prompt: \"{}\"", prompt);
+    public synchronized Optional<CacheEntry> findById(long id) {
+        return entries.stream().filter(e -> e.id() == id).findFirst();
+    }
+
+    /**
+     * Stores a new cache entry in memory and database.
+     */
+    public synchronized void store(String prompt, float[] embedding, String response) {
+        long id = repository.save(prompt, embedding, response);
+        entries.add(new CacheEntry(id, prompt, embedding, response));
+        log.info("STORED new cache entry id={} for prompt: \"{}\"", id, prompt);
+    }
+
+    /**
+     * Record a cache hit and return the current hit count.
+     */
+    public int recordHit() {
+        return hits.incrementAndGet();
+    }
+
+    /**
+     * Clear all cached entries and reset hit-rate stats.
+     */
+    public synchronized void clear() {
+        entries.clear();
+        repository.deleteAll();
+        totalChecks.set(0);
+        hits.set(0);
+        log.info("CACHE CLEARED — all entries removed, stats reset");
     }
 
     /**

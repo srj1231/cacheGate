@@ -1,9 +1,13 @@
 package com.saumya.cachegate.cache;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.io.*;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 
 /**
@@ -39,8 +43,9 @@ public class CacheEntryRepository {
      */
     public List<CacheEntry> findAll() {
         return jdbcTemplate.query(
-                "SELECT prompt, embedding, response FROM cache_entries",
+                "SELECT id, prompt, embedding, response FROM cache_entries",
                 (rs, rowNum) -> new CacheEntry(
+                        rs.getLong("id"),
                         rs.getString("prompt"),
                         bytesToFloats(rs.getBytes("embedding")),
                         rs.getString("response")
@@ -49,17 +54,32 @@ public class CacheEntryRepository {
     }
 
     /**
-     * Saves a new cache entry to the database.
+     * Inserts a new cache entry into the database using keyholder to get the auto-generated ID.
      *
-     * @param prompt the input prompt text
-     * @param embedding the embedding vector as a float array
-     * @param response the LLM response text
+     * @param prompt the prompt text
+     * @param embedding the embedding vector
+     * @param response the response text
+     * @return the auto-generated ID of the new cache entry
      */
-    public void save(String prompt, float[] embedding, String response) {
-        jdbcTemplate.update(
-                "INSERT INTO cache_entries (prompt, embedding, response) VALUES (?, ?, ?)",
-                prompt, floatsToBytes(embedding), response
-        );
+    public long save(String prompt, float[] embedding, String response) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    "INSERT INTO cache_entries (prompt, embedding, response) VALUES (?, ?, ?)",
+                    Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, prompt);
+            ps.setBytes(2, floatsToBytes(embedding));
+            ps.setString(3, response);
+            return ps;
+        }, keyHolder);
+        return keyHolder.getKey().longValue();
+    }
+
+    /**
+     * Deletes all cache entries from the database.
+     */
+    public void deleteAll() {
+        jdbcTemplate.update("DELETE FROM cache_entries");
     }
 
     /**

@@ -45,3 +45,6 @@ openrouter:
 cachegate:
   budget:
     max-requests: 50
+  cache:
+    auto-accept-threshold: 0.95
+    candidate-floor: 0.75
