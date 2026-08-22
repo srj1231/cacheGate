@@ -1,5 +1,6 @@
 package com.saumya.cachegate.cache;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,22 @@ public class SemanticCache {
 
     private static final double SIMILARITY_THRESHOLD = 0.8;
     private static final Logger log = LoggerFactory.getLogger(SemanticCache.class);
+
+    private final CacheEntryRepository repository;
     private final List<CacheEntry> entries = new ArrayList<>();
+
+    public SemanticCache(CacheEntryRepository repository) {
+        this.repository = repository;
+    }
+
+    /**
+     * Loads all cache entries from the database into memory.
+     */
+    @PostConstruct
+    public void loadFromDisk() {
+        entries.addAll(repository.findAll());
+        log.info("Loaded {} cache entries from disk", entries.size());
+    }
 
     /**
      * Finds a cached response similar to the query embedding.
@@ -32,13 +48,19 @@ public class SemanticCache {
 
         for(CacheEntry entry : entries){
             double score = cosineSimilarity(entry.embedding(), queryEmbedding);
-            if(score >= SIMILARITY_THRESHOLD && score > bestScore) {
-                best = entry;
+            if (score > bestScore) {
                 bestScore = score;
+                best = entry;
             }
         }
 
-        return best == null ? Optional.empty() : Optional.of(best.response());
+        if (best == null) {
+            log.info("SIMILARITY CHECK: cache is empty, nothing to compare against");
+            return Optional.empty();
+        }
+
+        log.info("SIMILARITY CHECK: closest match scored {} against cached prompt \"{}\"", bestScore, best.prompt());
+        return bestScore >= SIMILARITY_THRESHOLD ? Optional.of(best.response()) : Optional.empty();
     }
 
     /**
@@ -50,6 +72,8 @@ public class SemanticCache {
      */
     public synchronized void store(String prompt, float[] embeddings, String response) {
         entries.add(new CacheEntry(prompt, embeddings, response));
+        repository.save(prompt, embeddings, response);
+        log.info("STORED new cache entry for prompt: \"{}\"", prompt);
     }
 
     /**

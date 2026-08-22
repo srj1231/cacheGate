@@ -1,6 +1,12 @@
 spring:
   application:
     name: cachegate
+  datasource:
+    url: jdbc:sqlite:/Users/saumyajha/Documents/projects/cachegate/cachegate.db
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
 
   main:
     banner-mode: off
