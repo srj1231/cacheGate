@@ -40,5 +40,11 @@ logs/
 
 # IDE
 .idea/
-*.iml
 .vscode/
+
+# Streamlit
+streamlit_console/venv/
+streamlit_console/.env
+streamlit_console/.env.example
+
+.env
