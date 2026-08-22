@@ -9,9 +9,12 @@ spring:
       mode: always
 
   main:
-    banner-mode: off
+    banner-mode: "off"
 
   ai:
+    openai:
+      api-key: ${GROQ_API_KEY}
+
     mcp:
       server:
         stdio: true
@@ -26,5 +29,15 @@ spring:
             model: gemini-3.6-flash
         embedding:
           api-key: ${GEMINI_API_KEY}
-          options:
+          text:
             model: gemini-embedding-2
+
+groq:
+  api-key: ${GROQ_API_KEY}
+  base-url: https://api.groq.com/openai/v1
+  model: openai/gpt-oss-120b
+
+openrouter:
+  api-key: ${OPENROUTER_API_KEY}
+  base-url: https://openrouter.ai/api/v1
+  model: openrouter/free

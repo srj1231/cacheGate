@@ -78,6 +78,11 @@
 			<artifactId>sqlite-jdbc</artifactId>
 			<version>3.53.2.1</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-openai</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

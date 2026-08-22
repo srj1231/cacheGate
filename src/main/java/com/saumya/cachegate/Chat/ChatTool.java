@@ -1,10 +1,11 @@
 package com.saumya.cachegate.Chat;
 
 import com.saumya.cachegate.cache.SemanticCache;
-import com.saumya.cachegate.llmProvider.LlmProvider;
+import com.saumya.cachegate.llmProvider.ProviderChain;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import org.slf4j.Logger;
@@ -20,12 +21,14 @@ public class ChatTool {
 
     private static final Logger log = LoggerFactory.getLogger(ChatTool.class);
 
-    private final LlmProvider llmProvider;
+    private final ProviderChain providerChain;
     private final EmbeddingModel embeddingModel;
     private final SemanticCache semanticCache;
 
-    public ChatTool(LlmProvider llmProvider, EmbeddingModel embeddingModel, SemanticCache semanticCache) {
-        this.llmProvider = llmProvider;
+    public ChatTool(ProviderChain providerChain,
+                    @Qualifier("googleGenAiTextEmbedding") EmbeddingModel embeddingModel,
+                    SemanticCache semanticCache) {
+        this.providerChain = providerChain;
         this.embeddingModel = embeddingModel;
         this.semanticCache = semanticCache;
     }
@@ -43,7 +46,7 @@ public class ChatTool {
         }
 
         log.info("CACHE MISS for prompt: \"{}\"", prompt);
-        String response = llmProvider.complete(prompt);
+        String response = providerChain.complete(prompt);
         semanticCache.store(prompt, embedding, response);
 
         return response;
